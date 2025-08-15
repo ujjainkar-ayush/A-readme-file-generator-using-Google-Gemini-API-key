@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Readme Foundry — AI README Generator</title>
+  <meta name="description" content="Generate beautiful README.md files using Gemini AI. Live editor, preview, copy, and download." />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- GitHub-style markdown for preview -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown.min.css">
+  <!-- Marked + DOMPurify -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;           /* slate-900 */
+      --panel: #111827;        /* gray-900 */
+      --panel-2: #0b1220;      /* deep navy */
+      --fg: #e5e7eb;           /* gray-200 */
+      --muted: #94a3b8;        /* slate-400 */
+      --brand: #6ee7b7;        /* emerald-300 */
+      --accent: #60a5fa;       /* blue-400 */
+      --border: #1f2937;       /* gray-800 */
+      --shadow: 0 10px 30px rgba(0,0,0,0.3);
+      --code-bg: #0b1020;
+      --chip: #0f1b33;
+      --chip-border: #1c2a4a;
+    }
+    [data-theme="light"] {
+      --bg: #f8fafc;           /* slate-50 */
+      --panel: #ffffff;        /* white */
+      --panel-2: #f1f5f9;      /* slate-100 */
+      --fg: #0f172a;           /* slate-900 */
+      --muted: #475569;        /* slate-600 */
+      --brand: #0ea5e9;        /* sky-500 */
+      --accent: #7c3aed;       /* violet-600 */
+      --border: #e2e8f0;       /* slate-200 */
+      --shadow: 0 10px 30px rgba(2,8,23,0.08);
+      --code-bg: #0b1020;
+      --chip: #eef2ff;
+      --chip-border: #c7d2fe;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+      background: linear-gradient(120deg, var(--bg), var(--panel-2) 120%);
+      color: var(--fg);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 260px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel), rgba(0,0,0,0));
+      backdrop-filter: blur(6px);
+    }
+
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: .2px;
+    }
+    .brand .logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      display: grid; place-items: center;
+      color: #0b1020; font-weight: 900;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .controls input[type="text"], .controls input[type="password"], .controls input[type="url"], .controls select {
+      background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+      padding: 10px 12px; border-radius: 10px; outline: none; min-width: 220px;
+    }
+    .controls .small {
+      min-width: 120px;
+    }
+    .btn {
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      color: #0b1020;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr 1fr;
+      gap: 14px;
+      padding: 14px;
+      min-height: calc(100vh - 68px);
+    }
+
+    .panel {
+      background: rgba(0,0,0,0.12);
+      background: linear-gradient(160deg, var(--panel), rgba(0,0,0,0.06));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    }
+    .panel-body {
+      padding: 12px; overflow: auto; flex: 1;
+    }
+
+    .section {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: rgba(0,0,0,0.03);
+    }
+
+    .section h4 {
+      margin: 0 0 8px; font-size: 13px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .kv { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .kv label { font-size: 12px; color: var(--muted); }
+    .kv input, .kv textarea, .kv select {
+      background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+      padding: 10px 12px; border-radius: 10px; outline: none; width: 100%;
+    }
+    .kv textarea { min-height: 90px; resize: vertical; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      border: 1px solid var(--chip-border);
+      background: var(--chip);
+      color: inherit; padding: 6px 10px; border-radius: 999px;
+      font-size: 12px; cursor: pointer; user-select: none;
+    }
+    .chip.active { outline: 2px solid var(--accent); }
+
+    .toolbar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+
+    /* Editor + Preview */
+    .editor {
+      height: 100%;
+      display: flex; flex-direction: column;
+    }
+    .editor textarea {
+      flex: 1; width: 100%;
+      background: #0b1020;
+      color: #e2e8f0;
+      border: none; outline: none;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px; line-height: 1.5;
+      border-top: 1px solid var(--border);
+    }
+    .editor .editor-actions {
+      display: flex; gap: 8px; align-items: center; justify-content: space-between;
+      padding: 8px 10px;
+    }
+
+    .preview {
+      background: #0b1020;
+      border-top: 1px solid var(--border);
+    }
+    .markdown-body {
+      padding: 16px;
+      color: #e5e7eb;
+      background: #0b1020;
+    }
+    [data-theme="light"] .preview .markdown-body {
+      color: #111827; background: #ffffff;
+    }
+
+    .file-drop {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .file-drop.dragover { border-color: var(--accent); color: var(--accent); }
+
+    .list {
+      margin: 8px 0 0; padding: 0; list-style: none;
+      max-height: 120px; overflow: auto; border-top: 1px dashed var(--border);
+    }
+    .list li {
+      font-size: 12px; color: var(--muted); padding: 6px 0; border-bottom: 1px dashed var(--border);
+      display: flex; justify-content: space-between; gap: 8px;
+    }
+
+    .row { display: flex; gap: 8px; align-items: center; }
+    .grow { flex: 1; }
+
+    .reorder {
+      display: inline-flex; gap: 6px;
+    }
+    .icon-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--fg); border-radius: 8px; padding: 6px 8px; cursor: pointer;
+    }
+
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: rgba(255,255,255,0.95); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 1200px) {
+      .layout { grid-template-columns: 1fr; }
+      .topbar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">R</div>
+      Gen Readme
+      <span class="muted" style="font-weight:500">— Google Gemini API key is free to use ✨</span>
+    </div>
+
+    <div class="controls">
+      <input id="apiKey" type="password" placeholder="Paste Gemini API Key (for quick demo)" />
+      <input id="proxyUrl" class="small" type="url" placeholder="Proxy URL (optional)" />
+      <select id="model" class="small">
+        <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+      </select>
+      <select id="tone" class="small" title="Tone">
+        <option value="developer-friendly">developer-friendly</option>
+        <option value="concise">concise</option>
+        <option value="detailed">detailed</option>
+        <option value="friendly">friendly</option>
+        <option value="formal">formal</option>
+      </select>
+      <input id="temperature" class="small" type="number" step="0.1" min="0" max="2" value="0.7" title="Temperature" />
+      <input id="maxTokens" class="small" type="number" min="256" max="8192" value="4096" title="Max output tokens" />
+    </div>
+
+    <div class="controls">
+      <button id="generateBtn" class="btn">
+        <span id="genIcon">✨</span> Generate with AI
+      </button>
+      <button id="buildTemplateBtn" class="btn secondary">Build template</button>
+      <button id="darkToggle" class="btn secondary" title="Toggle dark mode">🌗</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: Sections + Project Info -->
+    <aside class="panel">
+      <div class="panel-header">
+        <strong>Project & Sections</strong>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <h4>Project info</h4>
+          <div class="kv">
+            <label>Project name</label>
+            <input id="projName" type="text" placeholder="e.g., Readme Foundry" />
+            <label>Tagline</label>
+            <input id="projTag" type="text" placeholder="e.g., Generate beautiful README.md files with AI" />
+            <label>One-line description</label>
+            <input id="projOneLiner" type="text" placeholder="e.g., Inspired by readme.so, powered by Gemini." />
+            <label>Detailed description for AI</label>
+            <textarea id="projDesc" placeholder="Describe your project goals, features, target audience, etc."></textarea>
+            <div class="row">
+              <div class="grow">
+                <label>Repository (owner/name)</label>
+                <input id="repoSlug" type="text" placeholder="e.g., yourname/readme-foundry" />
+              </div>
+              <div class="grow">
+                <label>Website</label>
+                <input id="website" type="url" placeholder="https://example.com" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="grow">
+                <label>License</label>
+                <select id="license">
+                  <option value="">Select license...</option>
+                  <option value="MIT">MIT</option>
+                  <option value="Apache-2.0">Apache-2.0</option>
+                  <option value="GPL-3.0">GPL-3.0</option>
+                  <option value="BSD-3-Clause">BSD-3-Clause</option>
+                  <option value="Proprietary">Proprietary</option>
+                </select>
+              </div>
+              <div class="grow">
+                <label>Include badges</label>
+                <div class="chips" id="badgesChips"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Sections (toggle and re-order)</h4>
+          <div id="sectionsList"></div>
+        </div>
+
+        <div class="section">
+          <h4>Project files</h4>
+          <div class="kv">
+            <input id="fileInput" type="file" webkitdirectory directory multiple />
+            <div id="fileDrop" class="file-drop">Drop a folder here or use the picker above</div>
+            <ul id="fileList" class="list"></ul>
+            <label><input id="includeSnippets" type="checkbox" checked /> Include tiny code snippets in AI prompt</label>
+            <span class="muted">We only extract small snippets of text files to help AI understand your structure.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Middle: Editor -->
+    <section class="panel">
+      <div class="panel-header toolbar">
+        <div class="row">
+          <button id="copyBtn" class="btn secondary">📋 Copy</button>
+          <button id="downloadBtn" class="btn secondary">⬇️ Download README.md</button>
+          <label class="btn secondary" title="Import README.md">
+            📤 Import
+            <input id="importFile" type="file" accept=".md,.markdown,text/markdown" style="display:none" />
+          </label>
+        </div>
+        <div class="muted">Autosaves locally</div>
+      </div>
+      <div class="panel-body editor">
+        <div class="editor-actions">
+          <div class="muted">Editing README.md</div>
+          <div class="row">
+            <button id="clearBtn" class="icon-btn" title="Clear editor">🧹</button>
+            <button id="wrapBtn" class="icon-btn" title="Toggle wrap">↔️</button>
+          </div>
+        </div>
+        <textarea id="editor" spellcheck="false" placeholder="# Your README will appear here..."></textarea>
+      </div>
+    </section>
+
+    <!-- Right: Preview -->
+    <section class="panel preview">
+      <div class="panel-header">
+        <strong>Preview</strong>
+        <span class="muted">GitHub-style</span>
+      </div>
+      <div id="preview" class="panel-body markdown-body">
+        <h1>Welcome 👋</h1>
+        <p>Live preview of your Markdown will appear here.</p>
+        <ul>
+          <li>Use the template builder or generate with AI.</li>
+          <li>Edit the Markdown in the middle panel.</li>
+          <li>Copy or download as README.md.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    function debounce(fn, wait=300) {
+      let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+    }
+
+    function saveLocal(key, val) {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    }
+    function loadLocal(key, fallback=null) {
+      try {
+        const v = localStorage.getItem(key);
+        return v ? JSON.parse(v) : fallback;
+      } catch { return fallback; }
+    }
+
+    function download(filename, text) {
+      const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard) return navigator.clipboard.writeText(text);
+      const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove(); return Promise.resolve();
+    }
+
+    // Detect "text-like" files by extension
+    function isTextPath(path) {
+      const p = path.toLowerCase();
+      const exts = [
+        ".md",".markdown",".txt",".json",".yml",".yaml",".toml",".ini",".env",
+        ".js",".ts",".jsx",".tsx",".cjs",".mjs",".vue",
+        ".html",".css",".scss",".less",
+        ".py",".rb",".php",".java",".kt",".swift",".go",".rs",
+        ".c",".h",".cpp",".hpp",".cs",
+        ".sql",".sh",".bat",".ps1",".dockerfile",".gradle",".xml",".properties"
+      ];
+      return exts.some(e => p.endsWith(e)) || p.includes("dockerfile");
+    }
+
+    function truncateText(str, max=4096) {
+      if (!str) return "";
+      if (str.length <= max) return str;
+      return str.slice(0, max) + "\n\n... [truncated]";
+    }
+
+    // ---------- State ----------
+    const state = {
+      files: [],           // {file, path, size, snippet?}
+      sections: [],
+      wrap: true,
+    };
+
+    // ---------- Sections Model (like readme.so) ----------
+    const DEFAULT_SECTIONS = [
+      { key: "title", label: "Title & Badges", enabled: true },
+      { key: "description", label: "Description", enabled: true },
+      { key: "toc", label: "Table of Contents", enabled: true },
+      { key: "features", label: "Features", enabled: true },
+      { key: "architecture", label: "Architecture / File Tree", enabled: true },
+      { key: "installation", label: "Installation", enabled: true },
+      { key: "usage", label: "Usage", enabled: true },
+      { key: "api", label: "API Reference", enabled: false },
+      { key: "env", label: "Environment Variables", enabled: false },
+      { key: "scripts", label: "Available Scripts", enabled: false },
+      { key: "tests", label: "Running Tests", enabled: false },
+      { key: "deployment", label: "Deployment", enabled: false },
+      { key: "contributing", label: "Contributing", enabled: true },
+      { key: "license", label: "License", enabled: true },
+      { key: "ack", label: "Acknowledgements", enabled: false },
+      { key: "faq", label: "FAQ", enabled: false },
+    ];
+
+    // Badge presets (shields.io)
+    const BADGES = [
+      { key: "license", label: "License", tpl: (repo, lic) =>
+        lic ? `![License](https://img.shields.io/badge/License-${encodeURIComponent(lic)}-blue.svg)` : "" },
+      { key: "stars", label: "GitHub stars", tpl: (repo) =>
+        repo ? `![Stars](https://img.shields.io/github/stars/${repo}.svg?style=social)` : "" },
+      { key: "issues", label: "GitHub issues", tpl: (repo) =>
+        repo ? `![Issues](https://img.shields.io/github/issues/${repo}.svg)` : "" },
+      { key: "forks", label: "GitHub forks", tpl: (repo) =>
+        repo ? `![Forks](https://img.shields.io/github/forks/${repo}.svg)` : "" },
+      { key: "lastcommit", label: "Last commit", tpl: (repo) =>
+        repo ? `![Last commit](https://img.shields.io/github/last-commit/${repo}.svg)` : "" },
+    ];
+
+    // ---------- Init ----------
+    const editor = $("#editor");
+    const preview = $("#preview");
+    const generateBtn = $("#generateBtn");
+    const genIcon = $("#genIcon");
+
+    function init() {
+      // Load persistent values
+      $("#apiKey").value = loadLocal("apiKey", "");
+      $("#proxyUrl").value = loadLocal("proxyUrl", "");
+      $("#model").value = loadLocal("model", "gemini-1.5-flash");
+      $("#tone").value = loadLocal("tone", "developer-friendly");
+      $("#temperature").value = loadLocal("temperature", 0.7);
+      $("#maxTokens").value = loadLocal("maxTokens", 4096);
+      $("#projName").value = loadLocal("projName", "");
+      $("#projTag").value = loadLocal("projTag", "");
+      $("#projOneLiner").value = loadLocal("projOneLiner", "");
+      $("#projDesc").value = loadLocal("projDesc", "");
+      $("#repoSlug").value = loadLocal("repoSlug", "");
+      $("#website").value = loadLocal("website", "");
+      $("#license").value = loadLocal("license", "");
+      editor.value = loadLocal("editor", SAMPLE_README).trim();
+
+      // theme
+      const theme = loadLocal("theme", "light");
+      document.documentElement.setAttribute("data-theme", theme);
+
+      // Preview initial
+      renderPreview();
+
+      // Sections
+      state.sections = loadLocal("sections", DEFAULT_SECTIONS);
+      renderSections();
+
+      // Badges
+      renderBadges();
+
+      // Files
+      renderFileList();
+
+      // Events
+      bindEvents();
+    }
+
+    const SAMPLE_README = `# Readme Foundry
+
+Generate beautiful README.md files with AI. Inspired by readme.so, powered by Gemini.
+
+- Live Markdown editor with preview
+- Template builder with togglable sections
+- Copy to clipboard and download as README.md
+- Optional AI generation using your Gemini API key
+
+`;
+
+    function bindEvents() {
+      // Persist controls
+      $("#apiKey").addEventListener("input", (e) => saveLocal("apiKey", e.target.value));
+      $("#proxyUrl").addEventListener("input", (e) => saveLocal("proxyUrl", e.target.value));
+      $("#model").addEventListener("change", (e) => saveLocal("model", e.target.value));
+      $("#tone").addEventListener("change", (e) => saveLocal("tone", e.target.value));
+      $("#temperature").addEventListener("input", (e) => saveLocal("temperature", parseFloat(e.target.value)));
+      $("#maxTokens").addEventListener("input", (e) => saveLocal("maxTokens", parseInt(e.target.value, 10)));
+
+      ["projName","projTag","projOneLiner","projDesc","repoSlug","website"].forEach(id => {
+        const el = $("#"+id);
+        el.addEventListener("input", debounce((e) => saveLocal(id, e.target.value), 200));
+      });
+      $("#license").addEventListener("change", (e) => saveLocal("license", e.target.value));
+
+      editor.addEventListener("input", debounce(() => {
+        saveLocal("editor", editor.value);
+        renderPreview();
+      }, 150));
+
+      $("#copyBtn").addEventListener("click", async () => {
+        await copyToClipboard(editor.value);
+        flash(generateBtn, "Copied!");
+      });
+      $("#downloadBtn").addEventListener("click", () => download("README.md", editor.value));
+      $("#clearBtn").addEventListener("click", () => { editor.value = ""; renderPreview(); saveLocal("editor", ""); });
+      $("#wrapBtn").addEventListener("click", () => {
+        state.wrap = !state.wrap;
+        editor.style.whiteSpace = state.wrap ? "pre-wrap" : "pre";
+      });
+
+      $("#importFile").addEventListener("change", importMarkdown);
+
+      $("#darkToggle").addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme");
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        saveLocal("theme", next);
+      });
+
+      $("#buildTemplateBtn").addEventListener("click", () => {
+        const md = buildTemplateMarkdown();
+        editor.value = md;
+        renderPreview();
+        saveLocal("editor", md);
+      });
+
+      $("#fileInput").addEventListener("change", onFilesSelected);
+      const drop = $("#fileDrop");
+      ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.add("dragover");
+      }));
+      ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.remove("dragover");
+      }));
+      drop.addEventListener("drop", (e) => {
+        const files = Array.from(e.dataTransfer.items || [])
+          .map(i => i.getAsFile && i.getAsFile())
+          .filter(Boolean);
+        if (files.length) handleFilesInput(e.dataTransfer.files);
+      });
+
+      $("#includeSnippets").addEventListener("change", (e) => {
+        saveLocal("includeSnippets", e.target.checked);
+      });
+
+      $("#generateBtn").addEventListener("click", generateWithAI);
+    }
+
+    function flash(btn, text="Done") {
+      const orig = btn.textContent;
+      btn.textContent = text;
+      setTimeout(() => { btn.textContent = orig; }, 1000);
+    }
+
+    // ---------- Sections UI ----------
+    function renderSections() {
+      const root = $("#sectionsList");
+      root.innerHTML = "";
+      state.sections.forEach((s, idx) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.style.marginBottom = "6px";
+        row.innerHTML = `
+          <label class="grow" style="display:flex; gap:8px; align-items:center">
+            <input type="checkbox" data-key="${s.key}" ${s.enabled ? "checked" : ""} />
+            <span>${s.label}</span>
+          </label>
+          <span class="reorder">
+            <button class="icon-btn" data-move="up" data-idx="${idx}" title="Move up">⬆️</button>
+            <button class="icon-btn" data-move="down" data-idx="${idx}" title="Move down">⬇️</button>
+          </span>
+        `;
+        root.appendChild(row);
+      });
+
+      // Events
+      root.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+        chk.addEventListener("change", (e) => {
+          const key = e.target.getAttribute("data-key");
+          const found = state.sections.find(s => s.key === key);
+          if (found) found.enabled = e.target.checked;
+          saveLocal("sections", state.sections);
+        });
+      });
+      root.querySelectorAll("button[data-move]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt(btn.getAttribute("data-idx"), 10);
+          const dir = btn.getAttribute("data-move");
+          const nextIdx = dir === "up" ? Math.max(0, idx - 1) : Math.min(state.sections.length - 1, idx + 1);
+          if (idx !== nextIdx) {
+            const [item] = state.sections.splice(idx, 1);
+            state.sections.splice(nextIdx, 0, item);
+            saveLocal("sections", state.sections);
+            renderSections();
+          }
+        });
+      });
+
+      saveLocal("sections", state.sections);
+    }
+
+    // ---------- Badges UI ----------
+    function renderBadges() {
+      const root = $("#badgesChips");
+      const active = new Set(loadLocal("badgesActive", ["license","stars","issues"]));
+      root.innerHTML = "";
+      BADGES.forEach(b => {
+        const chip = document.createElement("span");
+        chip.className = "chip " + (active.has(b.key) ? "active" : "");
+        chip.textContent = b.label;
+        chip.addEventListener("click", () => {
+          if (chip.classList.contains("active")) {
+            chip.classList.remove("active"); active.delete(b.key);
+          } else {
+            chip.classList.add("active"); active.add(b.key);
+          }
+          saveLocal("badgesActive", Array.from(active));
+        });
+        root.appendChild(chip);
+      });
+    }
+
+    // ---------- Template Builder ----------
+    function buildTemplateMarkdown() {
+      const name = $("#projName").value || "Project Title";
+      const tag = $("#projTag").value || "";
+      const desc = $("#projOneLiner").value || "";
+      const longDesc = $("#projDesc").value || "";
+      const repo = $("#repoSlug").value || "";
+      const site = $("#website").value || "";
+      const license = $("#license").value || "";
+      const activeBadges = new Set(loadLocal("badgesActive", []));
+
+      // Badges line
+      const badges = BADGES.map(b => b.tpl(repo, license)).filter(Boolean)
+        .filter((_, idx) => activeBadges.has(BADGES[idx].key));
+      const badgesLine = badges.length ? badges.join(" ") : "";
+
+      // File tree (from uploaded files)
+      const tree = buildFileTreeMarkdown(state.files);
+
+      // Sections assembly
+      const parts = [];
+      for (const s of state.sections) {
+        if (!s.enabled) continue;
+        switch (s.key) {
+          case "title":
+            parts.push(`# ${name}\n\n${badgesLine}\n\n${tag ? "_"+tag+"_\n" : ""}`);
+            break;
+          case "description":
+            parts.push(desc ? `> ${desc}\n` : "");
+            parts.push(longDesc || "");
+            break;
+          case "toc":
+            parts.push(`## Table of Contents
+- Features
+- Architecture
+- Installation
+- Usage
+- Contributing
+- License
+`);
+            break;
+          case "features":
+            parts.push(`## Features
+- AI-powered README generation (Gemini)
+- Live Markdown editor + GitHub-style preview
+- Copy to clipboard and download as README.md
+- Section-based template builder
+- Optional file-tree context for smarter AI
+`);
+            break;
+          case "architecture":
+            parts.push(`## Architecture / File Tree\n${tree || "_Upload a folder to include a file tree here._"}`);
+            break;
+          case "installation":
+            parts.push(`## Installation
+
+Clone the repo and open index.html in your browser, or serve locally.
+
+\`\`\`bash
+git clone https://github.com/${repo}.git
+cd ${repo.split("/").pop() || "your-project"}
+# Optionally serve locally
+npx serve
+\`\`\`
+`);
+            break;
+          case "usage":
+            parts.push(`## Usage
+
+- Paste your Gemini API key (or configure a proxy).
+- Describe your project and upload a folder for context.
+- Click "Generate with AI" or build a template, then edit and export.
+
+${site ? `Live site: ${site}\n` : ""}
+`);
+            break;
+          case "api":
+            parts.push(`## API Reference
+
+This app calls Google Gemini's Generative Language API.
+
+- Model: gemini-1.5-flash or gemini-1.5-pro
+- Endpoint: \`/v1beta/models/{model}:generateContent\`
+`);
+            break;
+          case "env":
+            parts.push(`## Environment Variables
+
+- GEMINI_API_KEY: Your Google Generative Language API key
+- PROXY_URL (optional): Server endpoint to keep your key secret
+`);
+            break;
+          case "scripts":
+            parts.push(`## Available Scripts
+
+- none (static app). Use any static server to host, e.g., Netlify, Vercel, GitHub Pages.
+`);
+            break;
+          case "tests":
+            parts.push(`## Running Tests
+
+No tests included in this starter.
+`);
+            break;
+          case "deployment":
+            parts.push(`## Deployment
+
+- Static hosting (Netlify/Vercel/GitHub Pages) for the frontend.
+- Optional serverless function for the Gemini proxy.
+`);
+            break;
+          case "contributing":
+            parts.push(`## Contributing
+
+Contributions are welcome! Please open an issue or PR.
+`);
+            break;
+          case "license":
+            parts.push(`## License
+
+${license || "Specify a license, e.g., MIT."}
+`);
+            break;
+          case "ack":
+            parts.push(`## Acknowledgements
+
+- Inspired by [readme.so](https://readme.so)
+- Google Gemini for content generation
+`);
+            break;
+          case "faq":
+            parts.push(`## FAQ
+
+**Is my API key safe?**  
+Do not embed secrets in client code. Use a proxy in production.
+
+**Can I upload my project folder?**  
+Yes, to help AI understand your structure (only small snippets are used).
+`);
+            break;
+        }
+      }
+
+      return parts.filter(Boolean).join("\n").replace(/\n{3,}/g, "\n\n");
+    }
+
+    function buildFileTreeMarkdown(files) {
+      if (!files || !files.length) return "";
+      // Build a tree-like list
+      const lines = files
+        .map(f => f.path)
+        .sort((a, b) => a.localeCompare(b))
+        .map(p => "- " + p)
+        .join("\n");
+      return "```text\n" + lines + "\n```\n";
+    }
+
+    // ---------- Files Handling ----------
+    async function onFilesSelected(e) {
+      handleFilesInput(e.target.files);
+    }
+
+    async function handleFilesInput(fileList) {
+      const includeSnippets = $("#includeSnippets").checked;
+      const entries = Array.from(fileList || []);
+      const mapped = [];
+      for (const file of entries) {
+        const path = file.webkitRelativePath || file.name;
+        const size = file.size;
+        const item = { file, path, size };
+        if (includeSnippets && isTextPath(path) && size < 250000) {
+          try {
+            const text = await file.text();
+            item.snippet = truncateText(text, 1200);
+          } catch {}
+        }
+        mapped.push(item);
+      }
+      state.files = mapped;
+      saveLocal("filesMeta", state.files.map(({path,size,snippet}) => ({path,size,snippet})));
+      renderFileList();
+    }
+
+    function renderFileList() {
+      const list = $("#fileList");
+      list.innerHTML = "";
+      const files = state.files.length ? state.files : (loadLocal("filesMeta", []) || []);
+      if (!state.files.length && files.length) {
+        // restore to runtime as no File blobs in storage
+        state.files = files;
+      }
+      files.slice(0, 200).forEach(f => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="grow">${f.path}</span><span>${(f.size/1024).toFixed(1)} KB</span>`;
+        list.appendChild(li);
+      });
+      if (files.length > 200) {
+        const li = document.createElement("li");
+        li.textContent = `... and ${files.length - 200} more files`;
+        list.appendChild(li);
+      }
+    }
+
+    // ---------- Preview ----------
+    function renderPreview() {
+      const dirty = marked.parse(editor.value || "");
+      const clean = DOMPurify.sanitize(dirty);
+      preview.innerHTML = clean;
+    }
+
+    // ---------- Import Markdown ----------
+    async function importMarkdown(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      editor.value = text;
+      renderPreview();
+      saveLocal("editor", text);
+      e.target.value = "";
+    }
+
+    // ---------- Gemini API ----------
+    async function generateWithAI() {
+      const apiKey = $("#apiKey").value.trim();
+      const proxyUrl = $("#proxyUrl").value.trim();
+      const model = $("#model").value.trim();
+      const tone = $("#tone").value;
+      const temperature = parseFloat($("#temperature").value || "0.7");
+      const maxOutputTokens = parseInt($("#maxTokens").value || "4096", 10);
+
+      if (!apiKey && !proxyUrl) {
+        alert("Provide a Gemini API key (for quick demo) or a Proxy URL (recommended for production).");
+        return;
+      }
+
+      const name = $("#projName").value;
+      const tag = $("#projTag").value;
+      const one = $("#projOneLiner").value;
+      const desc = $("#projDesc").value;
+      const repo = $("#repoSlug").value;
+      const site = $("#website").value;
+      const license = $("#license").value;
+      const includeSnippets = $("#includeSnippets").checked;
+
+      const selectedSections = state.sections.filter(s => s.enabled).map(s => s.label).join(", ");
+
+      // Compile project context for the prompt
+      let fileTree = "";
+      let snippets = "";
+      if (state.files.length) {
+        fileTree = "File tree:\n" + state.files.map(f => f.path).slice(0, 400).join("\n");
+        if (includeSnippets) {
+          const sn = state.files
+            .filter(f => f.snippet)
+            .slice(0, 12)
+            .map(f => `Path: ${f.path}\n-----\n${f.snippet}`)
+            .join("\n\n====\n\n");
+          snippets = sn ? `\nCode snippets (truncated):\n${sn}\n` : "";
+        }
+      }
+
+      const prompt = `
+You are a README.md generator. Create a polished, professional README for a GitHub project using the information below.
+- Output valid Markdown only (no backticks around the whole output).
+- Use clear headings, sensible ordering, and add code blocks with language fences where helpful.
+- Tone: ${tone}. Keep it helpful and practical for developers.
+- Include sections: ${selectedSections}.
+- If a repository slug is provided, use it in examples for clone commands and shields.io badges where appropriate.
+- If a license is specified, include a License section with the correct name.
+- Use the provided project files to infer architecture and features. Be concise but informative.
+
+Project:
+- Name: ${name || "(unspecified)"}
+- Tagline: ${tag || "(none)"}
+- One-liner: ${one || "(none)"}
+- Detailed description: ${desc || "(none)"}
+- Repo: ${repo || "(none)"}
+- Website: ${site || "(none)"}
+- License: ${license || "(none)"}
+
+${fileTree ? "\n" + fileTree : ""}
+${snippets ? "\n" + snippets : ""}
+
+Please produce only the README Markdown content.
+      `.trim();
+
+      setLoading(true);
+      try {
+        const md = await callGemini({ apiKey, proxyUrl, model, temperature, maxOutputTokens, prompt });
+        if (!md) throw new Error("No content returned from model");
+        editor.value = md.trim();
+        saveLocal("editor", editor.value);
+        renderPreview();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to generate README: " + (err.message || err));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function callGemini({ apiKey, proxyUrl, model, temperature, maxOutputTokens, prompt }) {
+      // Prefer proxy if provided
+      if (proxyUrl) {
+        const res = await fetch(proxyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model, prompt, generationConfig: { temperature, maxOutputTokens }
+          }),
+        });
+        if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+        const data = await res.json();
+        return extractGeminiText(data);
+      }
+
+      // Client-side direct call (not recommended for production)
+      if (!apiKey) throw new Error("Missing API key");
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const body = {
+        contents: [{ role: "user", parts: [{ text: prompt }]}],
+        generationConfig: {
+          temperature,
+          maxOutputTokens,
+        }
+      };
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(`Gemini error: ${res.status} ${msg}`);
+      }
+      const data = await res.json();
+      return extractGeminiText(data);
+    }
+
+    function extractGeminiText(resp) {
+      // v1beta response: candidates[0].content.parts[0].text
+      const c = resp?.candidates?.[0];
+      const parts = c?.content?.parts || [];
+      const text = parts.map(p => p.text).filter(Boolean).join("\n").trim();
+      return text;
+    }
+
+    function setLoading(loading) {
+      generateBtn.disabled = loading;
+      genIcon.innerHTML = loading ? '<span class="spinner"></span>' : '✨';
+    }
+
+    // ---------- Kickoff ----------
+    init();
+  </script>
+</body>
+</html>
