@@ -41,7 +41,7 @@ For production, do not expose your API key in client code. Use a server/proxy.
 
 1) Clone and run locally
 ```bash
-git clone [https://github.com/yourname/yourrepo.git](https://github.com/ujjainkar-ayush/A-readme-file-generator-using-Google-Gemini-API-key)
+git clone https://github.com/ujjainkar-ayush/A-readme-file-generator-using-Google-Gemini-API-key
 
 # Open index.html directly OR serve for best results:
 npx serve .
