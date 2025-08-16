@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Readme Foundry — AI README Generator</title>
+  <meta name="description" content="Generate beautiful README.md files using Gemini AI. Live editor, preview, copy, and download." />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #111827; --panel-2: #0b1220; --fg: #e5e7eb; --muted: #94a3b8;
+      --brand: #6ee7b7; --accent: #60a5fa; --border: #1f2937; --shadow: 0 10px 30px rgba(0,0,0,0.3);
+      --code-bg: #0b1020; --chip: #0f1b33; --chip-border: #1c2a4a;
+    }
+    [data-theme="light"] {
+      --bg: #f8fafc; --panel: #ffffff; --panel-2: #f1f5f9; --fg: #0f172a; --muted: #475569;
+      --brand: #0ea5e9; --accent: #7c3aed; --border: #e2e8f0; --shadow: 0 10px 30px rgba(2,8,23,0.08);
+      --code-bg: #0b1020; --chip: #eef2ff; --chip-border: #c7d2fe;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+      background: linear-gradient(120deg, var(--bg), var(--panel-2) 120%);
+      color: var(--fg);
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: grid; grid-template-columns: 260px 1fr auto; gap: 12px; align-items: center;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--panel), rgba(0,0,0,0)); backdrop-filter: blur(6px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: .2px; }
+    .brand a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
+    .logo {
+      width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      display: grid; place-items: center; box-shadow: var(--shadow);
+    }
+    .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .topbar .controls:last-of-type { justify-self: end; }
+
+    /* Inputs — include number type; remove native spinners */
+    .controls input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
+    .controls select {
+      background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+      padding: 10px 12px; border-radius: 10px; outline: none; min-width: 220px;
+    }
+    .controls .small { min-width: 120px; }
+    .controls input[type="number"] { -moz-appearance: textfield; }
+    .controls input[type="number"]::-webkit-outer-spin-button,
+    .controls input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    .btn {
+      background: linear-gradient(135deg, var(--brand), var(--accent)); color: #0b1020;
+      border: none; padding: 10px 14px; border-radius: 10px; font-weight: 700; cursor: pointer;
+      box-shadow: var(--shadow); display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); box-shadow: none; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn i, .icon-btn i { font-size: 18px; line-height: 1; }
+    .btn.secondary.icon-only { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
+
+    .layout { display: grid; grid-template-columns: 300px 1fr 1fr; gap: 14px; padding: 14px; min-height: calc(100vh - 68px); }
+
+    .panel {
+      background: linear-gradient(160deg, var(--panel), rgba(0,0,0,0.06));
+      border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .panel-header {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    }
+    .panel-body { padding: 12px; overflow: auto; flex: 1; }
+
+    .section { border: 1px dashed var(--border); border-radius: 12px; padding: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.03); }
+    .section h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+    .kv { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .kv label { font-size: 12px; color: var(--muted); }
+    .kv input, .kv textarea, .kv select {
+      background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+      padding: 10px 12px; border-radius: 10px; outline: none; width: 100%;
+    }
+    .kv textarea { min-height: 90px; resize: vertical; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid var(--chip-border); background: var(--chip); color: inherit; padding: 6px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; user-select: none; }
+    .chip.active { outline: 2px solid var(--accent); }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .editor { height: 100%; display: flex; flex-direction: column; }
+    .editor textarea {
+      flex: 1; width: 100%; background: #0b1020; color: #e2e8f0;
+      border: none; outline: none; padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px; line-height: 1.5; border-top: 1px solid var(--border); white-space: pre-wrap;
+    }
+    .editor .editor-actions { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 10px; }
+
+    .preview { background: #0b1020; border-top: 1px solid var(--border); }
+    .markdown-body { padding: 16px; color: #e5e7eb; background: #0b1020; }
+    [data-theme="light"] .preview .markdown-body { color: #111827; background: #ffffff; }
+
+    .file-drop {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 16px; text-align: center; color: var(--muted);
+    }
+    .file-drop.dragover { border-color: var(--accent); color: var(--accent); }
+
+    .list { margin: 8px 0 0; padding: 0; list-style: none; max-height: 120px; overflow: auto; border-top: 1px dashed var(--border); }
+    .list li { font-size: 12px; color: var(--muted); padding: 6px 0; border-bottom: 1px dashed var(--border); display: flex; justify-content: space-between; gap: 8px; }
+
+    .row { display: flex; gap: 8px; align-items: center; }
+    .grow { flex: 1; }
+
+    .icon-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--fg);
+      border-radius: 8px; padding: 6px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    .muted { color: var(--muted); font-size: 12px; }
+
+    /* Spinner + mini loader */
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: rgba(255,255,255,0.95); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    .spinner.sm { width: 14px; height: 14px; border-width: 2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .mini-loader {
+      position: fixed; right: 16px; bottom: 16px; z-index: 50;
+      display: none; align-items: center; gap: 8px;
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 10px;
+      backdrop-filter: blur(6px);
+      box-shadow: var(--shadow);
+    }
+    [data-theme="light"] .mini-loader { background: rgba(255, 255, 255, 0.65); }
+
+    /* Restyled "Choose project folder" button to match dark theme */
+    #fileInput { display: none; }
+    .file-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--panel-2); color: var(--fg);
+      border: 1px solid var(--border); padding: 10px 14px; border-radius: 10px;
+      font-weight: 700; cursor: pointer; box-shadow: none;
+    }
+    .file-btn:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .file-btn i { font-size: 18px; }
+
+    .footer { max-width: 1100px; margin: 8px auto 24px; padding: 0 16px; text-align:center; color: var(--muted); }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 1200px) {
+      .layout { grid-template-columns: 1fr; }
+      .topbar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="index.html" aria-label="Home">
+        <div class="logo">
+          <!-- Replace the src below with your logo path -->
+          <img src="Untitled design.png" alt="Logo" />
+        </div>
+        <span class="brand-name">Gen Readme</span>
+      </a>
+    </div>
+
+    <div class="controls">
+      <input id="apiKey" type="password" placeholder="Paste Gemini API Key (for quick demo)" />
+      <input id="proxyUrl" class="small" type="url" placeholder="Proxy URL (optional)" />
+      <select id="model" class="small">
+        <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+      </select>
+      <select id="tone" class="small" title="Tone">
+        <option value="developer-friendly">developer-friendly</option>
+        <option value="concise">concise</option>
+        <option value="detailed">detailed</option>
+        <option value="friendly">friendly</option>
+        <option value="formal">formal</option>
+      </select>
+      <input id="temperature" class="small" type="number" step="0.1" min="0" max="2" value="0.7" title="Temperature" />
+      <input id="maxTokens" class="small" type="number" min="256" max="8192" value="4096" title="Max output tokens" />
+    </div>
+
+    <div class="controls">
+      <button id="generateBtn" class="btn" title="Generate with AI">
+        <span id="genIcon"><i class="ri-sparkling-2-line"></i></span> Generate with AI
+      </button>
+      <button id="darkToggle" class="btn secondary" title="Toggle dark mode" aria-label="Toggle theme">
+        <i id="themeIcon" class="ri-moon-line"></i>
+      </button>
+      <a id="githubLink" class="btn secondary icon-only" href="https://github.com" target="_blank" rel="noopener" title="Open GitHub" aria-label="Open GitHub">
+        <i class="ri-github-fill"></i>
+      </a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: Sections + Project Info -->
+    <aside class="panel">
+      <div class="panel-header">
+        <strong>Project & Sections</strong>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <h4>Project info</h4>
+          <div class="kv">
+            <label>Project name</label>
+            <input id="projName" type="text" placeholder="e.g., Readme Foundry" />
+            <label>Tagline</label>
+            <input id="projTag" type="text" placeholder="e.g., Generate beautiful README.md files with AI" />
+            <label>One-line description</label>
+            <input id="projOneLiner" type="text" placeholder="e.g., Inspired by readme.so, powered by Gemini." />
+            <label>Detailed description for AI</label>
+            <textarea id="projDesc" placeholder="Describe your project goals, features, target audience, etc."></textarea>
+            <div class="row">
+              <div class="grow">
+                <label>Repository (owner/name)</label>
+                <input id="repoSlug" type="text" placeholder="e.g., yourname/readme-foundry" />
+              </div>
+              <div class="grow">
+                <label>Website</label>
+                <input id="website" type="url" placeholder="https://example.com" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="grow">
+                <label>License</label>
+                <select id="license">
+                  <option value="">Select license...</option>
+                  <option value="MIT">MIT</option>
+                  <option value="Apache-2.0">Apache-2.0</option>
+                  <option value="GPL-3.0">GPL-3.0</option>
+                  <option value="BSD-3-Clause">BSD-3-Clause</option>
+                  <option value="Proprietary">Proprietary</option>
+                </select>
+              </div>
+              <div class="grow">
+                <label>Include badges</label>
+                <div class="chips" id="badgesChips"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Sections (toggle and re-order)</h4>
+          <div id="sectionsList"></div>
+        </div>
+
+        <div class="section">
+          <h4>Project files</h4>
+          <div class="kv">
+            <input id="fileInput" type="file" webkitdirectory directory multiple />
+            <label for="fileInput" id="filePickerBtn" class="file-btn"><i class="ri-folder-open-line"></i> Choose project folder</label>
+            <div id="fileDrop" class="file-drop">Or drop a folder here</div>
+            <ul id="fileList" class="list"></ul>
+            <label><input id="includeSnippets" type="checkbox" checked /> Include tiny code snippets in AI prompt</label>
+            <span class="muted">We only extract small snippets of text files to help AI understand your structure.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Middle: Editor -->
+    <section class="panel">
+      <div class="panel-header toolbar">
+        <div class="row">
+          <button id="copyBtn" class="btn secondary" title="Copy to clipboard"><i class="ri-file-copy-line"></i> Copy</button>
+          <button id="downloadBtn" class="btn secondary" title="Download README.md"><i class="ri-download-2-line"></i> Download README.md</button>
+          <label class="btn secondary" title="Import README.md">
+            <i class="ri-upload-2-line"></i> Import
+            <input id="importFile" type="file" accept=".md,.markdown,text/markdown" style="display:none" />
+          </label>
+        </div>
+        <div class="muted">Autosaves locally</div>
+      </div>
+      <div class="panel-body editor">
+        <div class="editor-actions">
+          <div class="muted">Editing README.md</div>
+          <div class="row">
+            <button id="clearBtn" class="icon-btn" title="Clear editor"><i class="ri-eraser-line"></i></button>
+            <button id="wrapBtn" class="icon-btn" title="Toggle wrap"><i class="ri-text-wrap"></i></button>
+          </div>
+        </div>
+        <textarea id="editor" spellcheck="false" placeholder="# Your README will appear here..."></textarea>
+      </div>
+    </section>
+
+    <!-- Right: Preview -->
+    <section class="panel preview">
+      <div class="panel-header">
+        <strong>Preview</strong>
+        <span class="muted">GitHub-style</span>
+      </div>
+      <div id="preview" class="panel-body markdown-body">
+        <h1>Welcome</h1>
+        <p>Live preview of your Markdown will appear here.</p>
+        <ul>
+          <li>Use the AI generator to draft a README.</li>
+          <li>Edit the Markdown in the middle panel.</li>
+          <li>Copy or download as README.md.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Small transparent loader -->
+  <div id="miniLoader" class="mini-loader" role="status" aria-live="polite" aria-label="Generating">
+    <span class="spinner sm" role="progressbar" aria-hidden="true"></span>
+    <span>Generating...</span>
+  </div>
+
+  <div class="footer">
+    <small>
+      Built by <strong>Ayush Ujjainkar</strong>. Disclaimer: You must use your own Google Gemini API key.
+      Get your API key at
+      <a href="https://ai.google.dev/aistudio" target="_blank" rel="noopener">https://ai.google.dev/aistudio</a>.
+    </small>
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const debounce = (fn, wait=300) => { let t; return (...a) => { clearTimeout(t); t=setTimeout(()=>fn(...a),wait); }; };
+    const saveLocal = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    const loadLocal = (k, f=null) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } };
+
+    function download(filename, text) {
+      const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
+    }
+    function copyToClipboard(text) {
+      if (navigator.clipboard) return navigator.clipboard.writeText(text);
+      const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove(); return Promise.resolve();
+    }
+    function isTextPath(path) {
+      const p = path.toLowerCase();
+      const exts = [".md",".markdown",".txt",".json",".yml",".yaml",".toml",".ini",".env",".js",".ts",".jsx",".tsx",".cjs",".mjs",".vue",".html",".css",".scss",".less",".py",".rb",".php",".java",".kt",".swift",".go",".rs",".c",".h",".cpp",".hpp",".cs",".sql",".sh",".bat",".ps1",".dockerfile",".gradle",".xml",".properties"];
+      return exts.some(e => p.endsWith(e)) || p.includes("dockerfile");
+    }
+    function truncateText(str, max=4096) { if (!str) return ""; if (str.length <= max) return str; return str.slice(0, max) + "\n\n... [truncated]"; }
+
+    // ---------- State ----------
+    const state = { files: [], sections: [], wrap: true };
+
+    // ---------- Sections ----------
+    const DEFAULT_SECTIONS = [
+      { key: "title", label: "Title & Badges", enabled: true },
+      { key: "description", label: "Description", enabled: true },
+      { key: "toc", label: "Table of Contents", enabled: true },
+      { key: "features", label: "Features", enabled: true },
+      { key: "architecture", label: "Architecture / File Tree", enabled: true },
+      { key: "installation", label: "Installation", enabled: true },
+      { key: "usage", label: "Usage", enabled: true },
+      { key: "api", label: "API Reference", enabled: false },
+      { key: "env", label: "Environment Variables", enabled: false },
+      { key: "scripts", label: "Available Scripts", enabled: false },
+      { key: "tests", label: "Running Tests", enabled: false },
+      { key: "deployment", label: "Deployment", enabled: false },
+      { key: "contributing", label: "Contributing", enabled: true },
+      { key: "license", label: "License", enabled: true },
+      { key: "ack", label: "Acknowledgements", enabled: false },
+      { key: "faq", label: "FAQ", enabled: false },
+    ];
+
+    // ---------- Init ----------
+    const editor = $("#editor");
+    const preview = $("#preview");
+    const generateBtn = $("#generateBtn");
+    const genIcon = $("#genIcon");
+    const miniLoader = $("#miniLoader");
+
+    function updateThemeIcon() {
+      const theme = document.documentElement.getAttribute("data-theme") || "light";
+      const icon = $("#themeIcon");
+      if (icon) icon.className = theme === "dark" ? "ri-sun-line" : "ri-moon-line";
+    }
+
+    function updateGithubLink() {
+      const slug = ($("#repoSlug").value || "").trim();
+      const a = $("#githubLink");
+      if (!a) return;
+      if (slug && slug.includes("/")) { a.href = "https://github.com/" + slug; a.title = `Open ${slug} on GitHub`; }
+      else { a.href = "https://github.com"; a.title = "Open GitHub"; }
+    }
+
+    const SAMPLE_README = `# Readme Foundry
+
+Generate beautiful README.md files with AI. Inspired by readme.so, powered by Gemini.
+
+- Live Markdown editor with preview
+- Copy to clipboard and download as README.md
+- Optional file-tree context for smarter AI
+
+`;
+
+    function init() {
+      // Persisted values
+      $("#apiKey").value = loadLocal("apiKey", "");
+      $("#proxyUrl").value = loadLocal("proxyUrl", "");
+      $("#model").value = loadLocal("model", "gemini-1.5-flash");
+      $("#tone").value = loadLocal("tone", "developer-friendly");
+      $("#temperature").value = loadLocal("temperature", 0.7);
+      $("#maxTokens").value = loadLocal("maxTokens", 4096);
+      $("#projName").value = loadLocal("projName", "");
+      $("#projTag").value = loadLocal("projTag", "");
+      $("#projOneLiner").value = loadLocal("projOneLiner", "");
+      $("#projDesc").value = loadLocal("projDesc", "");
+      $("#repoSlug").value = loadLocal("repoSlug", "");
+      $("#website").value = loadLocal("website", "");
+      $("#license").value = loadLocal("license", "");
+      editor.value = loadLocal("editor", SAMPLE_README).trim();
+
+      // Theme
+      const theme = loadLocal("theme", "light");
+      document.documentElement.setAttribute("data-theme", theme);
+      updateThemeIcon();
+
+      renderPreview();
+      state.sections = loadLocal("sections", DEFAULT_SECTIONS);
+      renderSections();
+      renderBadges();
+      renderFileList();
+      updateGithubLink();
+      bindEvents();
+    }
+
+    function bindEvents() {
+      $("#apiKey").addEventListener("input", (e) => saveLocal("apiKey", e.target.value));
+      $("#proxyUrl").addEventListener("input", (e) => saveLocal("proxyUrl", e.target.value));
+      $("#model").addEventListener("change", (e) => saveLocal("model", e.target.value));
+      $("#tone").addEventListener("change", (e) => saveLocal("tone", e.target.value));
+      $("#temperature").addEventListener("input", (e) => saveLocal("temperature", parseFloat(e.target.value)));
+      $("#maxTokens").addEventListener("input", (e) => saveLocal("maxTokens", parseInt(e.target.value, 10)));
+
+      ["projName","projTag","projOneLiner","projDesc","repoSlug","website"].forEach(id => {
+        const el = $("#"+id);
+        el.addEventListener("input", debounce((e) => {
+          saveLocal(id, e.target.value);
+          if (id === "repoSlug") updateGithubLink();
+        }, 200));
+      });
+      $("#license").addEventListener("change", (e) => saveLocal("license", e.target.value));
+
+      editor.addEventListener("input", debounce(() => {
+        saveLocal("editor", editor.value);
+        renderPreview();
+      }, 150));
+
+      $("#copyBtn").addEventListener("click", async () => {
+        await copyToClipboard(editor.value);
+        const btn = $("#copyBtn");
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="ri-check-line"></i> Copied!';
+        setTimeout(()=> btn.innerHTML = orig, 1000);
+      });
+      $("#downloadBtn").addEventListener("click", () => download("README.md", editor.value));
+      $("#clearBtn").addEventListener("click", () => { editor.value = ""; renderPreview(); saveLocal("editor", ""); });
+      $("#wrapBtn").addEventListener("click", () => {
+        state.wrap = !state.wrap;
+        editor.style.whiteSpace = state.wrap ? "pre-wrap" : "pre";
+      });
+
+      $("#importFile").addEventListener("change", importMarkdown);
+
+      $("#darkToggle").addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme");
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        saveLocal("theme", next);
+        updateThemeIcon();
+      });
+
+      $("#fileInput").addEventListener("change", onFilesSelected);
+      const drop = $("#fileDrop");
+      ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.add("dragover");
+      }));
+      ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.remove("dragover");
+      }));
+      drop.addEventListener("drop", (e) => {
+        const files = Array.from(e.dataTransfer.items || [])
+          .map(i => i.getAsFile && i.getAsFile())
+          .filter(Boolean);
+        if (files.length) handleFilesInput(e.dataTransfer.files);
+      });
+
+      $("#includeSnippets").addEventListener("change", (e) => {
+        saveLocal("includeSnippets", e.target.checked);
+      });
+
+      $("#generateBtn").addEventListener("click", generateWithAI);
+    }
+
+    function renderSections() {
+      const root = $("#sectionsList");
+      root.innerHTML = "";
+      state.sections.forEach((s, idx) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.style.marginBottom = "6px";
+        row.innerHTML = `
+          <label class="grow" style="display:flex; gap:8px; align-items:center">
+            <input type="checkbox" data-key="${s.key}" ${s.enabled ? "checked" : ""} />
+            <span>${s.label}</span>
+          </label>
+          <span>
+            <button class="icon-btn" data-move="up" data-idx="${idx}" title="Move up"><i class="ri-arrow-up-s-line"></i></button>
+            <button class="icon-btn" data-move="down" data-idx="${idx}" title="Move down"><i class="ri-arrow-down-s-line"></i></button>
+          </span>
+        `;
+        root.appendChild(row);
+      });
+
+      root.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+        chk.addEventListener("change", (e) => {
+          const key = e.target.getAttribute("data-key");
+          const found = state.sections.find(s => s.key === key);
+          if (found) found.enabled = e.target.checked;
+          saveLocal("sections", state.sections);
+        });
+      });
+      root.querySelectorAll("button[data-move]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.getAttribute("data-idx"), 10);
+          const dir = btn.getAttribute("data-move");
+          const nextIdx = dir === "up" ? Math.max(0, idx - 1) : Math.min(state.sections.length - 1, idx + 1);
+          if (idx !== nextIdx) {
+            const [item] = state.sections.splice(idx, 1);
+            state.sections.splice(nextIdx, 0, item);
+            saveLocal("sections", state.sections);
+            renderSections();
+          }
+        });
+      });
+
+      saveLocal("sections", state.sections);
+    }
+
+    function renderBadges() {
+      const root = $("#badgesChips");
+      const active = new Set(loadLocal("badgesActive", ["license","stars","issues"]));
+      root.innerHTML = "";
+      const BADGE_CHOICES = [
+        { key: "license", label: "License" },
+        { key: "stars", label: "GitHub stars" },
+        { key: "issues", label: "GitHub issues" },
+        { key: "forks", label: "GitHub forks" },
+        { key: "lastcommit", label: "Last commit" },
+      ];
+      BADGE_CHOICES.forEach(b => {
+        const chip = document.createElement("span");
+        chip.className = "chip " + (active.has(b.key) ? "active" : "");
+        chip.textContent = b.label;
+        chip.addEventListener("click", () => {
+          if (chip.classList.contains("active")) { chip.classList.remove("active"); active.delete(b.key); }
+          else { chip.classList.add("active"); active.add(b.key); }
+          saveLocal("badgesActive", Array.from(active));
+        });
+        root.appendChild(chip);
+      });
+    }
+
+    function buildFileTreeMarkdown(files) {
+      if (!files || !files.length) return "";
+      const lines = files.map(f => f.path).sort((a, b) => a.localeCompare(b)).map(p => "- " + p).join("\n");
+      return "```text\n" + lines + "\n```\n";
+    }
+
+    async function onFilesSelected(e) { handleFilesInput(e.target.files); }
+    async function handleFilesInput(fileList) {
+      const includeSnippets = $("#includeSnippets").checked;
+      const entries = Array.from(fileList || []);
+      const mapped = [];
+      for (const file of entries) {
+        const path = file.webkitRelativePath || file.name;
+        const size = file.size;
+        const item = { file, path, size };
+        if (includeSnippets && isTextPath(path) && size < 250000) {
+          try { const text = await file.text(); item.snippet = truncateText(text, 1200); } catch {}
+        }
+        mapped.push(item);
+      }
+      state.files = mapped;
+      saveLocal("filesMeta", state.files.map(({path,size,snippet}) => ({path,size,snippet})));
+      renderFileList();
+    }
+
+    function renderFileList() {
+      const list = $("#fileList");
+      list.innerHTML = "";
+      const files = state.files.length ? state.files : (loadLocal("filesMeta", []) || []);
+      if (!state.files.length && files.length) { state.files = files; }
+      files.slice(0, 200).forEach(f => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="grow">${f.path}</span><span>${(f.size/1024).toFixed(1)} KB</span>`;
+        list.appendChild(li);
+      });
+      if (files.length > 200) {
+        const li = document.createElement("li"); li.textContent = `... and ${files.length - 200} more files`; list.appendChild(li);
+      }
+    }
+
+    function renderPreview() {
+      const dirty = marked.parse(editor.value || "");
+      const clean = DOMPurify.sanitize(dirty);
+      preview.innerHTML = clean;
+    }
+
+    async function importMarkdown(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      editor.value = text;
+      renderPreview();
+      saveLocal("editor", text);
+      e.target.value = "";
+    }
+
+    async function generateWithAI() {
+      const apiKey = $("#apiKey").value.trim();
+      const proxyUrl = $("#proxyUrl").value.trim();
+      const model = $("#model").value.trim();
+      const tone = $("#tone").value;
+      const temperature = parseFloat($("#temperature").value || "0.7");
+      const maxOutputTokens = parseInt($("#maxTokens").value || "4096", 10);
+
+      if (!apiKey && !proxyUrl) {
+        alert("Provide a Gemini API key (for quick demo) or a Proxy URL (recommended for production).");
+        return;
+      }
+
+      const name = $("#projName").value;
+      const tag = $("#projTag").value;
+      const one = $("#projOneLiner").value;
+      const desc = $("#projDesc").value;
+      const repo = $("#repoSlug").value;
+      const site = $("#website").value;
+      const license = $("#license").value;
+      const includeSnippets = $("#includeSnippets").checked;
+
+      const selectedSections = state.sections.filter(s => s.enabled).map(s => s.label).join(", ");
+
+      let fileTree = "";
+      let snippets = "";
+      if (state.files.length) {
+        fileTree = "File tree:\n" + state.files.map(f => f.path).slice(0, 400).join("\n");
+        if (includeSnippets) {
+          const sn = state.files
+            .filter(f => f.snippet)
+            .slice(0, 12)
+            .map(f => `Path: ${f.path}\n-----\n${f.snippet}`)
+            .join("\n\n====\n\n");
+          snippets = sn ? `\nCode snippets (truncated):\n${sn}\n` : "";
+        }
+      }
+
+      const prompt = `
+You are a README.md generator. Create a polished, professional README for a GitHub project using the information below.
+- Output valid Markdown only (no backticks around the whole output).
+- Use clear headings, sensible ordering, and add code blocks with language fences where helpful.
+- Tone: ${tone}. Keep it helpful and practical for developers.
+- Include sections: ${selectedSections}.
+- If a repository slug is provided, use it in examples for clone commands and shields.io badges where appropriate.
+- If a license is specified, include a License section with the correct name.
+- Use the provided project files to infer architecture and features. Be concise but informative.
+
+Project:
+- Name: ${name || "(unspecified)"}
+- Tagline: ${tag || "(none)"}
+- One-liner: ${one || "(none)"}
+- Detailed description: ${desc || "(none)"}
+- Repo: ${repo || "(none)"}
+- Website: ${site || "(none)"}
+- License: ${license || "(none)"}
+
+${fileTree ? "\n" + fileTree : ""}
+${snippets ? "\n" + snippets : ""}
+
+Please produce only the README Markdown content.
+      `.trim();
+
+      setLoading(true);
+      try {
+        const md = await callGemini({ apiKey, proxyUrl, model, temperature, maxOutputTokens, prompt });
+        if (!md) throw new Error("No content returned from model");
+        editor.value = md.trim();
+        saveLocal("editor", editor.value);
+        renderPreview();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to generate README: " + (err.message || err));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function callGemini({ apiKey, proxyUrl, model, temperature, maxOutputTokens, prompt }) {
+      if (proxyUrl) {
+        const res = await fetch(proxyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model, prompt, generationConfig: { temperature, maxOutputTokens } }),
+        });
+        if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+        const data = await res.json();
+        return extractGeminiText(data);
+      }
+
+      if (!apiKey) throw new Error("Missing API key");
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const body = { contents: [{ role: "user", parts: [{ text: prompt }]}], generationConfig: { temperature, maxOutputTokens } };
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(`Gemini error: ${res.status} ${msg}`);
+      }
+      const data = await res.json();
+      return extractGeminiText(data);
+    }
+
+    function extractGeminiText(resp) {
+      const c = resp?.candidates?.[0];
+      const parts = c?.content?.parts || [];
+      const text = parts.map(p => p.text).filter(Boolean).join("\n").trim();
+      return text;
+    }
+
+    function setLoading(loading) {
+      generateBtn.disabled = loading;
+      genIcon.innerHTML = loading ? '<span class="spinner" aria-hidden="true"></span>' : '<i class="ri-sparkling-2-line"></i>';
+      if (miniLoader) miniLoader.style.display = loading ? "inline-flex" : "none";
+    }
+
+    // ---------- Kickoff ----------
+    init();
+  </script>
+</body>
+</html>
